@@ -9,7 +9,8 @@ export enum Tab {
   IOC_SEARCH = 'IOC_SEARCH',
   ASM = 'ASM',
   DMARC = 'DMARC',
-  URL_ANALYSIS = 'URL_ANALYSIS'
+  URL_ANALYSIS = 'URL_ANALYSIS',
+  DOMAIN_CHECK = 'DOMAIN_CHECK'
 }
 
 export interface NewsItem {
@@ -192,4 +193,29 @@ export interface UrlAnalysisResult {
 
   // 7. Technologies
   technologies: string[];
+}
+
+// --- Domain Check Types ---
+export interface DomainCheckResult {
+  domain: string;
+  globalScore: number; // 0-100 (100 is best)
+  
+  dnsAudit: {
+    status: 'PASS' | 'WARNING' | 'FAIL';
+    issues: string[]; // Problèmes DNS (dnsaudit.io style)
+  };
+
+  mxToolbox: {
+    blacklistStatus: 'CLEAN' | 'LISTED';
+    smtpBanner: string;
+    mailConfig: { spf: boolean; dmarc: boolean };
+  };
+
+  exposure: {
+    shodanPorts: number[];
+    censysServices: string[];
+    vulnerabilities: string[];
+  };
+
+  details: string; // Résumé textuel
 }

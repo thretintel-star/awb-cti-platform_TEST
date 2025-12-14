@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchRecentVulnerabilities, generateDeepAnalysis } from '../services/geminiService';
 import { Vulnerability } from '../types';
-import { AlertTriangle, Server, Calendar, Sparkles, FileText } from 'lucide-react';
+import { AlertTriangle, Server, Calendar, Sparkles, FileText, SortDesc } from 'lucide-react';
 
 const VulnTab: React.FC = () => {
   const [vulns, setVulns] = useState<Vulnerability[]>([]);
@@ -24,7 +24,8 @@ const VulnTab: React.FC = () => {
     if(vulns.length === 0) return;
     setAnalyzing(true);
     try {
-        const text = await generateDeepAnalysis("Vulnérabilités / CVE Récentes", vulns);
+        // On n'envoie que les 20 premières pour l'analyse IA globale pour éviter de saturer le prompt
+        const text = await generateDeepAnalysis("Vulnérabilités / CVE Récentes (Top 20)", vulns.slice(0, 20));
         setAnalysis(text);
     } finally {
         setAnalyzing(false);
@@ -42,13 +43,21 @@ const VulnTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <h2 className="text-2xl font-bold text-emerald-400 flex items-center gap-2">
                 <AlertTriangle className="w-6 h-6" />
-                Vulnérabilités Exploitées (KEV)
+                Vulnérabilités
             </h2>
-            <p className="text-slate-400 text-sm mt-1">Basé sur les rapports récents via Gemini</p>
+            <div className="flex items-center gap-2 mt-1">
+                <p className="text-slate-400 text-sm">Dernières 50 CVEs publiées (Tri chronologique)</p>
+                {vulns.length > 0 && (
+                     <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700 font-mono flex items-center gap-1">
+                        <SortDesc className="w-3 h-3"/>
+                        {vulns.length} CVEs
+                     </span>
+                )}
+            </div>
         </div>
         
         {vulns.length > 0 && !loading && (
@@ -79,43 +88,49 @@ const VulnTab: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-                <div key={i} className="h-32 bg-slate-900 rounded-xl animate-pulse"></div>
+        <div className="grid gap-4 md:grid-cols-2">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="h-40 bg-slate-900 rounded-xl animate-pulse border border-slate-800"></div>
             ))}
+             <div className="col-span-full text-center text-slate-500 py-4 animate-pulse">
+                Récupération des 50 dernières CVEs en cours...
+             </div>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
             {vulns.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
-                    Aucune vulnérabilité critique trouvée pour le moment.
+                <div className="col-span-full p-8 text-center text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                    Aucune vulnérabilité trouvée pour le moment.
                 </div>
             ) : (
                 vulns.map((vuln, i) => (
-                    <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-red-500/30 transition-all">
-                        <div className="flex flex-col md:flex-row justify-between md:items-start gap-4 mb-4">
-                            <div>
-                                <div className="flex items-center gap-3 mb-2">
-                                    <span className={`px-2 py-1 rounded text-xs font-bold ${getSeverityColor(vuln.severity)}`}>
-                                        {vuln.severity}
-                                    </span>
-                                    <span className="font-mono text-emerald-500 text-sm border border-emerald-500/20 px-2 py-0.5 rounded">
-                                        {vuln.cve}
-                                    </span>
-                                </div>
-                                <h3 className="text-xl font-semibold text-slate-100">{vuln.title}</h3>
-                            </div>
-                            <div className="flex items-center text-slate-500 text-sm">
-                                <Calendar className="w-4 h-4 mr-2" />
+                    <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-red-500/30 transition-all flex flex-col">
+                        <div className="flex justify-between items-start mb-3">
+                             <span className={`px-2 py-1 rounded text-xs font-bold ${getSeverityColor(vuln.severity)}`}>
+                                 {vuln.severity}
+                             </span>
+                            <div className="flex items-center text-slate-500 text-xs">
+                                <Calendar className="w-3 h-3 mr-1" />
                                 {new Date(vuln.date).toLocaleDateString()}
                             </div>
                         </div>
                         
-                        <p className="text-slate-400 mb-4">{vuln.description}</p>
+                        <div className="mb-3">
+                             <div className="font-mono text-emerald-500 text-sm font-bold mb-1">
+                                {vuln.cve}
+                            </div>
+                            <h3 className="text-base font-semibold text-slate-200 line-clamp-2" title={vuln.title}>
+                                {vuln.title}
+                            </h3>
+                        </div>
                         
-                        <div className="flex flex-wrap gap-2">
-                            {vuln.affectedSystems.map((sys, idx) => (
-                                <span key={idx} className="flex items-center text-xs text-slate-300 bg-slate-800 px-2 py-1 rounded-full">
+                        <p className="text-slate-400 text-sm mb-4 line-clamp-3 flex-1">
+                            {vuln.description}
+                        </p>
+                        
+                        <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-800/50">
+                            {vuln.affectedSystems && vuln.affectedSystems.map((sys, idx) => (
+                                <span key={idx} className="flex items-center text-[10px] text-slate-300 bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-full">
                                     <Server className="w-3 h-3 mr-1 text-slate-500" />
                                     {sys}
                                 </span>
